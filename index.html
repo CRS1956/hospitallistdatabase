@@ -124,13 +124,13 @@
 <body>
 
 <h2>
-  SSS – Magma Networked Hospitals Database Search
+  Hospital Database Search
   <button id="helpBtn" title="Help">?</button>
 </h2>
 <input type="text" id="searchBar" placeholder="Search anything...">
-<!--<select id="filterSelect">
+<!-- <select id="filterSelect">
   <option value="">All Departments</option>
-</select>-->
+</select> -->
 
 <div class="table-container">
   <table id="dataTable">
@@ -175,7 +175,7 @@ fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRv1zjVKuLXAsjMoPKOQ5rhVj
   .then(data => {
     const parsed = Papa.parse(data, { header: false });
     allData = parsed.data;
-    populateFilter();
+    // populateFilter();
     filterAndRender();
   });
 
@@ -194,12 +194,12 @@ function populateFilter() {
 
 function filterAndRender() {
   const query = document.getElementById('searchBar').value.toLowerCase();
-  const selectedFilter = document.getElementById('filterSelect').value;
+//   const selectedFilter = document.getElementById('filterSelect').value;
   filteredData = allData.filter((row, index) => {
     if (index === 0) return false;
     const matchesSearch = row.some(cell => cell.toLowerCase().includes(query));
-    const matchesFilter = selectedFilter ? row[2] === selectedFilter : true;
-    return matchesSearch && matchesFilter;
+    // const matchesFilter = selectedFilter ? row[2] === selectedFilter : true;
+    return matchesSearch;
   });
   renderTable();
   renderPagination();
