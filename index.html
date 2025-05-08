@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSS – Magma Networked Hospitals Database Search</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #f4f7f9;
+      color: #333;
+    }
+    h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #helpBtn {
+      cursor: pointer;
+      background: #007BFF;
+      border: none;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+    }
+    input, select {
+      padding: 0.7rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-right: 10px;
+      margin-bottom: 1rem;
+    }
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 600px;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #007BFF;
+      color: white;
+      text-align: left;
+    }
+    tr:hover td {
+      background: #f1f9ff;
+    }
+    #pagination-wrapper {
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+    #pagination {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 10px 0;
+      flex-wrap: wrap;
+    }
+    .page-link {
+      padding: 6px 12px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .page-link:hover {
+      background: #007BFF;
+      color: white;
+    }
+    .active-page {
+      background: #007BFF;
+      color: white;
+      font-weight: bold;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      padding-top: 80px;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+      background-color: white;
+      margin: auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: black;
+    }
+  </style>
+</head>
+<body>
+
+<h2>
+  Hospital Database Search
+  <button id="helpBtn" title="Help">?</button>
+</h2>
+<input type="text" id="searchBar" placeholder="Search anything...">
+<select id="filterSelect">
+  <option value="">All Departments</option>
+</select>
+
+<div class="table-container">
+  <table id="dataTable">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="pagination-wrapper">
+  <div id="pagination"></div>
+</div>
+
+<!-- Help Modal -->
+<div id="helpModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>SSS – MAGMA NETWORKED HOSPITALS DATABASE</h3>
+    <p><strong>Updated as on Mar 15, 2025</strong></p>
+    <p>You may use any one of the following keys to search the database:</p>
+    <ul>
+      <li>Location (Chennai, Mumbai etc)</li>
+      <li>State</li>
+      <li>Hospital Name (to be spelt correctly)</li>
+      <li>Pin Code</li>
+      <li>Any part of the address (to be spelt correctly). This is not a very efficient search though.</li>
+      <li>The hospitals database is as on Mar 15, 2025. While efforts will be made to add and delete hospitals, as intimated by Magma periodically, please check with the Insurance Desk of the hospital of your choice for it’s current status.</li>
+    </ul>
+    <p>When search results span across many pages, the page numbers appear at the bottom of the Search Page. Click on the page number to navigate to the respective page.</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+const rowsPerPage = 10;
+
+fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRv1zjVKuLXAsjMoPKOQ5rhVjZUW_iMqqh2t4k-vQoHUj0Rok78a0Q43a3Q6hk7v2Du3Keh0DLa0cGc/pub?gid=2860923&single=true&output=csv')
+  .then(response => response.text())
+  .then(data => {
+    const parsed = Papa.parse(data, { header: false });
+    allData = parsed.data;
+    populateFilter();
+    filterAndRender();
+  });
+
+function populateFilter() {
+  const deptSet = new Set();
+  allData.slice(1).forEach(row => deptSet.add(row[2]));
+  const filter = document.getElementById('filterSelect');
+  deptSet.forEach(dept => {
+    const option = document.createElement('option');
+    option.value = dept;
+    option.textContent = dept;
+    filter.appendChild(option);
+  });
+  new Choices('#filterSelect', { searchEnabled: true, itemSelectText: '', shouldSort: false });
+}
+
+function filterAndRender() {
+  const query = document.getElementById('searchBar').value.toLowerCase();
+  const selectedFilter = document.getElementById('filterSelect').value;
+  filteredData = allData.filter((row, index) => {
+    if (index === 0) return false;
+    const matchesSearch = row.some(cell => cell.toLowerCase().includes(query));
+    const matchesFilter = selectedFilter ? row[2] === selectedFilter : true;
+    return matchesSearch && matchesFilter;
+  });
+  renderTable();
+  renderPagination();
+}
+
+function renderTable() {
+  const tableHead = document.querySelector('#dataTable thead');
+  const tableBody = document.querySelector('#dataTable tbody');
+  tableHead.innerHTML = '';
+  tableBody.innerHTML = '';
+  if (allData.length > 0) {
+    const headerRow = allData[0].map(h => `<th>${h}</th>`).join('');
+    tableHead.innerHTML = `<tr>${headerRow}</tr>`;
+  }
+  const start = (currentPage - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  const paginatedItems = filteredData.slice(start, end);
+  paginatedItems.forEach(row => {
+    const rowHTML = row.map(cell => `<td>${cell}</td>`).join('');
+    tableBody.innerHTML += `<tr>${rowHTML}</tr>`;
+  });
+}
+
+function renderPagination() {
+  const pagination = document.getElementById('pagination');
+  pagination.innerHTML = '';
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+  const createButton = (label, targetPage, isActive = false) => {
+    const btn = document.createElement('span');
+    btn.textContent = label;
+    btn.className = 'page-link' + (isActive ? ' active-page' : '');
+    btn.onclick = () => {
+      currentPage = targetPage;
+      renderTable();
+      renderPagination();
+    };
+    return btn;
+  };
+
+  if (currentPage > 1) {
+    pagination.appendChild(createButton('«', currentPage - 1));
+  }
+
+  if (currentPage > 2) {
+    pagination.appendChild(createButton('1', 1));
+    if (currentPage > 3) pagination.appendChild(createButton('...', currentPage - 2));
+  }
+
+  pagination.appendChild(createButton(currentPage, currentPage, true));
+
+  if (currentPage < totalPages - 1) {
+    if (currentPage < totalPages - 2) pagination.appendChild(createButton('...', currentPage + 2));
+    pagination.appendChild(createButton(totalPages, totalPages));
+  }
+
+  if (currentPage < totalPages) {
+    pagination.appendChild(createButton('»', currentPage + 1));
+  }
+}
+
+document.getElementById('searchBar').addEventListener('input', () => {
+  currentPage = 1;
+  filterAndRender();
+});
+
+document.getElementById('filterSelect').addEventListener('change', () => {
+  currentPage = 1;
+  filterAndRender();
+});
+
+const modal = document.getElementById("helpModal");
+const btn = document.getElementById("helpBtn");
+const span = document.querySelector(".close");
+
+window.onload = () => { modal.style.display = "block"; };
+btn.onclick = () => { modal.style.display = "block"; };
+span.onclick = () => { modal.style.display = "none"; };
+window.onclick = (event) => { if (event.target == modal) modal.style.display = "none"; };
+</script>
+</body>
+</html>
